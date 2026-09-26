@@ -1,0 +1,155 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>RIVALS — 1v1 デュエル FPS</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Rajdhani:wght@500;600;700&family=M+PLUS+1p:wght@500;700;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="css/style.css">
+  <script type="importmap">
+    { "imports": { "three": "./lib/three.module.min.js" } }
+  </script>
+</head>
+<body>
+  <canvas id="game"></canvas>
+
+  <!-- ===== HUD ===== -->
+  <div id="hud" class="hidden">
+    <div id="scorebar">
+      <div class="team blue">
+        <span class="tname">YOU</span>
+        <div class="pips" id="pipsBlue"></div>
+        <span class="score" id="scoreBlue">0</span>
+      </div>
+      <div id="timer">1:30</div>
+      <div class="team red">
+        <span class="score" id="scoreRed">0</span>
+        <div class="pips" id="pipsRed"></div>
+        <span class="tname">RIVAL</span>
+      </div>
+    </div>
+
+    <div id="crosshair"><i class="t"></i><i class="b"></i><i class="l"></i><i class="r"></i><b></b></div>
+    <div id="hitmarker"><i></i><i></i><i></i><i></i></div>
+    <div id="dmgIndicators"></div>
+    <div id="dmgNumbers"></div>
+    <div id="enemyTag"><span>RIVAL</span><div class="ebar"><div id="enemyFill"></div></div></div>
+
+    <div id="banner"><div class="big"></div><div class="small"></div></div>
+    <div id="killfeed"></div>
+    <div id="toast"></div>
+    <div id="reloadBar"><span>リロード中</span><div><i id="reloadFill"></i></div></div>
+
+    <div id="healthBox">
+      <div class="hplabel">HP</div>
+      <div class="hpbar"><div id="hpGhost"></div><div id="hpFill"></div></div>
+      <div id="hpText">150</div>
+    </div>
+
+    <div id="weaponBox">
+      <div id="weaponName">アサルトライフル</div>
+      <div id="ammo"><span id="mag">20</span><span id="reserve">/ 100</span></div>
+      <div id="slots"></div>
+      <div id="nadeReady">G グレネード準備完了</div>
+    </div>
+
+    <div id="vignette"></div>
+    <div id="hurtFlash"></div>
+  </div>
+
+  <!-- ===== メインメニュー ===== -->
+  <div id="menu" class="screen">
+    <div class="menu-inner">
+      <header class="title">
+        <div class="logo">RIVALS</div>
+        <div class="subtitle">ライバル ・ 1v1 デュエル</div>
+      </header>
+
+      <div class="menu-grid">
+        <section class="panel">
+          <h2>マップ</h2>
+          <div class="maps">
+            <button class="map-card selected" data-map="arena">
+              <div class="map-art arena"><span></span></div>
+              <div class="map-meta"><b>アリーナ</b><small>夜のネオンスタジアム。左右対称の近〜中距離戦。</small></div>
+            </button>
+            <button class="map-card" data-map="battleground">
+              <div class="map-art battleground"><span></span></div>
+              <div class="map-meta"><b>バトルグラウンド</b><small>砂漠の軍事拠点。コンテナ・廃墟・監視塔。</small></div>
+            </button>
+          </div>
+
+          <h2>ライバルの強さ</h2>
+          <div class="seg" id="diffSeg">
+            <button data-diff="easy">イージー</button>
+            <button data-diff="normal" class="on">ノーマル</button>
+            <button data-diff="hard">ハード</button>
+          </div>
+
+          <button id="startBtn" class="primary">対戦開始</button>
+          <div class="rules">5点先取 ・ 1試合 1:30 ・ 体力 150</div>
+        </section>
+
+        <section class="panel">
+          <h2>ロードアウト</h2>
+          <div class="loadout" id="loadout"></div>
+
+          <h2>設定</h2>
+          <label class="row">マウス感度 <input type="range" id="sens" min="0.2" max="3" step="0.05" value="1"><output id="sensOut">1.00</output></label>
+          <label class="row">視野角 (FOV) <input type="range" id="fov" min="65" max="100" step="1" value="78"><output id="fovOut">78</output></label>
+          <label class="row">音量 <input type="range" id="vol" min="0" max="1" step="0.05" value="0.6"><output id="volOut">60</output></label>
+          <div class="row">グラフィック
+            <div class="seg small" id="qualSeg">
+              <button data-q="low">低</button>
+              <button data-q="medium">中</button>
+              <button data-q="high" class="on">高</button>
+            </div>
+          </div>
+        </section>
+      </div>
+
+      <div class="controls">
+        <span><kbd>WASD</kbd>移動</span>
+        <span><kbd>Space</kbd>ジャンプ</span>
+        <span><kbd>Shift</kbd>ダッシュ</span>
+        <span><kbd>C</kbd>しゃがみ / ダッシュ中スライディング</span>
+        <span><kbd>左クリック</kbd>攻撃</span>
+        <span><kbd>右クリック</kbd>エイム</span>
+        <span><kbd>R</kbd>リロード</span>
+        <span><kbd>1-4</kbd>/<kbd>ホイール</kbd>武器切替</span>
+        <span><kbd>Q</kbd>前の武器</span>
+        <span><kbd>G</kbd>グレネード即投げ</span>
+        <span><kbd>Esc</kbd>ポーズ</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- ===== ポーズ ===== -->
+  <div id="pause" class="screen hidden">
+    <div class="modal">
+      <h1>ポーズ</h1>
+      <button id="resumeBtn" class="primary">再開</button>
+      <label class="row">マウス感度 <input type="range" id="sens2" min="0.2" max="3" step="0.05" value="1"><output id="sens2Out">1.00</output></label>
+      <button id="quitBtn">メニューに戻る</button>
+    </div>
+  </div>
+
+  <!-- ===== 結果 ===== -->
+  <div id="results" class="screen hidden">
+    <div class="modal wide">
+      <div id="resTitle" class="res-title">勝利</div>
+      <div id="resScore" class="res-score"><span class="blue">0</span> - <span class="red">0</span></div>
+      <div class="stats" id="resStats"></div>
+      <div class="btns">
+        <button id="againBtn" class="primary">もう一度</button>
+        <button id="menuBtn">メニュー</button>
+      </div>
+    </div>
+  </div>
+
+  <div id="clickToPlay" class="hidden">クリックして開始</div>
+
+  <script type="module" src="js/main.js"></script>
+</body>
+</html>
