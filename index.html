@@ -325,7 +325,7 @@ body.fever .card .fever-tag { display: block; animation: wobble .6s ease-in-out 
 .rr-rank strong { font: 400 1.2rem/1.2 var(--font-display); }
 .rr-delta { font: 400 1.3rem/1 var(--font-display); font-variant-numeric: tabular-nums; }
 .rr-delta.up { color: var(--cherry); }
-.rr-note { margin: 0; font-size: .85rem; font-weight: 800; opacity: .8; }
+.rr-note { margin: 0; font-size: .85rem; font-weight: 800; opacity: .8; white-space: pre-line; line-height: 1.6; }
 .actions { display: flex; flex-wrap: wrap; gap: 14px; justify-content: center; }
 
 .toast {
@@ -410,7 +410,7 @@ body.fever .card .fever-tag { display: block; animation: wobble .6s ease-in-out 
       <li><b>10コンボ</b>ごとに倍率アップ</li>
       <li><b>50コンボ</b>でフィーバー</li>
       <li><b>ゲージ満タン</b>で Space → バブルボム</li>
-      <li><b>ランク戦</b>はノルマ達成で RP 獲得、100RP で昇格（全50段階）</li>
+      <li><b>ランク戦</b>は毎試合 ELO 獲得、200 たまるごとに昇格（全50段階）</li>
     </ul>
     <p class="note">日本語入力（IME）はオフにして、半角英数で打ってください。「ー」は − キー。<br>「shi / si」「chi / ti」「n / nn」など、どの打ち方でもOK。</p>
   </section>
@@ -474,7 +474,7 @@ body.fever .card .fever-tag { display: block; animation: wobble .6s ease-in-out 
         <div class="rr-head">
           <span id="verdict" class="verdict">WIN!</span>
           <span class="rr-rank"><span class="emblem" id="rEmb">1</span><strong id="rRankName">ブロンズ 1</strong></span>
-          <span id="rDelta" class="rr-delta">+40 RP</span>
+          <span id="rDelta" class="rr-delta">+120 ELO</span>
         </div>
         <span class="gbar rp"><i id="rRp"></i></span>
         <p class="rr-note" id="rNote"></p>
@@ -1022,9 +1022,15 @@ function paintEmblem(e, lv) {
   e.classList.toggle('legend', t === TIERS.length - 1);
   if (TIERS[t][1]) e.style.setProperty('--tc', TIERS[t][1]);
 }
-const RK = { lv: 1, rp: 0, streak: 0, wins: 0, games: 0 };
-try { Object.assign(RK, JSON.parse(localStorage.getItem('shuwa-ranked') || '{}')); } catch (e) {}
-RK.lv = Math.max(1, Math.min(MAX_LV, RK.lv | 0)); RK.rp = Math.max(0, RK.rp | 0);
+const ELO_PER = 200;  // これだけたまると次のランクへ
+const RK = { lv: 1, elo: 0, total: 0, streak: 0, wins: 0, games: 0 };
+try {
+  const saved = JSON.parse(localStorage.getItem('shuwa-ranked') || '{}');
+  if (saved.elo == null && saved.rp != null) saved.elo = saved.rp * 2;  // 旧 RP（100で昇格）からの引き継ぎ
+  delete saved.rp;
+  Object.assign(RK, saved);
+} catch (e) {}
+RK.lv = Math.max(1, Math.min(MAX_LV, RK.lv | 0)); RK.elo = Math.max(0, RK.elo | 0);
 function saveRanked() { try { localStorage.setItem('shuwa-ranked', JSON.stringify(RK)); } catch (e) {} }
 const LISTS = { easy: parseList(WORDS.easy), normal: parseList(WORDS.normal), hard: parseList(WORDS.hard) };
 
@@ -1068,8 +1074,8 @@ function renderTitle() {
   $('tRankName').textContent = rankName(RK.lv);
   $('tStars').textContent = rankStars(RK.lv);
   $('tLv').textContent = `Lv.${RK.lv} / ${MAX_LV}` + (RK.streak > 1 ? `　${RK.streak}連勝中` : '');
-  $('tRp').style.transform = `scaleX(${RK.lv >= MAX_LV ? 1 : RK.rp / 100})`;
-  $('tCond').textContent = (RK.lv >= MAX_LV ? `最高ランク！ ${RK.rp} RP　` : `${RK.rp} / 100 RP　`) + '次の試合: ' + condText(RK.lv);
+  $('tRp').style.transform = `scaleX(${RK.lv >= MAX_LV ? 1 : RK.elo / ELO_PER})`;
+  $('tCond').textContent = (RK.lv >= MAX_LV ? `最高ランク！ ${RK.elo} ELO　` : `${RK.elo} / ${ELO_PER} ELO　`) + '次の試合: ' + condText(RK.lv);
 }
 function renderNorm() {
   const total = G.ok + G.miss, acc = total ? G.ok / total * 100 : 100;
@@ -1406,43 +1412,47 @@ function showResult() {
 
 /* ---------- ランク戦の精算 ---------- */
 function settleRanked(acc) {
-  const before = { lv: RK.lv, rp: RK.rp };
+  const before = { lv: RK.lv, elo: RK.elo };
   const accOk = acc * 100 >= G.acc, normOk = G.ok >= G.norm, win = accOk && normOk;
-  let gain;
   RK.games++;
+  // 毎試合 ELO がもらえる。ノルマにどれだけ近づいたか＋勝利・連勝ボーナス
+  const parts = [];
+  let base = Math.round(80 * Math.min(1.5, G.ok / G.norm));
+  if (!accOk) base = Math.round(base / 2);
+  parts.push(`打鍵 +${base}${accOk ? '' : '（正確率不足で半分）'}`);
+  let gain = base;
   if (win) {
     RK.wins++; RK.streak++;
-    const over = Math.max(0, Math.min(30, Math.floor((G.ok / G.norm - 1) * 100)));  // ノルマ超過ぶん
-    gain = 40 + over + Math.min(30, (RK.streak - 1) * 10);                          // 連勝ボーナス
+    gain += 40; parts.push('勝利 +40');
+    const st = Math.min(30, (RK.streak - 1) * 10);
+    if (st) { gain += st; parts.push(`${RK.streak}連勝 +${st}`); }
   } else {
     RK.streak = 0;
-    gain = -Math.min(20, RK.rp);  // RP は 0 未満にならず、降格もしない
   }
-  RK.rp += gain;
+  gain = Math.max(10, gain);
+  RK.elo += gain; RK.total = (RK.total || 0) + gain;
   let ups = 0;
-  while (RK.lv < MAX_LV && RK.rp >= 100) { RK.rp -= 100; RK.lv++; ups++; }
+  while (RK.lv < MAX_LV && RK.elo >= ELO_PER) { RK.elo -= ELO_PER; RK.lv++; ups++; }
   saveRanked();
-  const reasons = [];
-  reasons.push(`正しく打った数 ${G.ok} / ノルマ ${G.norm}${normOk ? ' ✓' : ' ✗'}`);
-  if (G.acc) reasons.push(`正確率 ${(acc * 100).toFixed(1)}% / ${G.acc}%${accOk ? ' ✓' : ' ✗'}`);
-  if (win && RK.streak > 1) reasons.push(`${RK.streak}連勝ボーナス`);
+  const cond = [`正しく打った数 ${G.ok} / ノルマ ${G.norm}${normOk ? ' ✓' : ' ✗'}`];
+  if (G.acc) cond.push(`正確率 ${(acc * 100).toFixed(1)}% / ${G.acc}%${accOk ? ' ✓' : ' ✗'}`);
 
-  $('verdict').textContent = win ? 'WIN!' : 'LOSE';
+  $('verdict').textContent = win ? 'WIN!' : 'おしい!';
   $('verdict').className = 'verdict' + (win ? ' win' : '');
   paintEmblem($('rEmb'), before.lv);
   $('rRankName').textContent = rankName(before.lv);
-  $('rDelta').textContent = (gain >= 0 ? '+' : '−') + Math.abs(gain) + ' RP';
-  $('rDelta').className = 'rr-delta' + (gain > 0 ? ' up' : '');
-  $('rRp').style.transform = `scaleX(${before.lv >= MAX_LV ? 1 : before.rp / 100})`;
-  $('rNote').textContent = reasons.join('　');
-  return { before, after: { lv: RK.lv, rp: RK.rp }, ups, win };
+  $('rDelta').textContent = `+${gain} ELO`;
+  $('rDelta').className = 'rr-delta up';
+  $('rRp').style.transform = `scaleX(${before.lv >= MAX_LV ? 1 : before.elo / ELO_PER})`;
+  $('rNote').textContent = cond.join('　') + '\n' + parts.join('　') + (RK.lv < MAX_LV ? `　→ 次のランクまであと ${ELO_PER - RK.elo} ELO` : '');
+  return { before, after: { lv: RK.lv, elo: RK.elo }, ups, win };
 }
 function animateRanked(rr) {
   const bar = $('rRp');
   const setBar = (v, ms) => { bar.style.transition = `transform ${ms}ms cubic-bezier(.3,.9,.3,1)`; bar.style.transform = `scaleX(${v})`; };
-  if (!rr.win) { sfx.miss(); setBar(rr.after.lv >= MAX_LV ? 1 : rr.after.rp / 100, 600); return; }
-  sfx.clear(true);
-  if (!rr.ups) { setBar(rr.after.lv >= MAX_LV ? 1 : rr.after.rp / 100, 800); return; }
+  const fill = rr.after.lv >= MAX_LV ? 1 : rr.after.elo / ELO_PER;
+  sfx.clear(rr.win);
+  if (!rr.ups) { setBar(fill, 800); return; }
   // 昇格: いったん満タンにしてから RANK UP!
   setBar(1, 700);
   cdTimers.push(setTimeout(() => {
@@ -1457,7 +1467,7 @@ function animateRanked(rr) {
     ring(c.x, c.y, 20, 220, '#ffe04a', .8, 12);
     burst(c.x, c.y, 40, 700, ['star', 'conf'], { life: 1.2, size: 8, g: 600, up: 250 });
     bar.style.transition = 'none'; bar.style.transform = 'scaleX(0)';
-    requestAnimationFrame(() => setBar(rr.after.lv >= MAX_LV ? 1 : rr.after.rp / 100, 700));
+    requestAnimationFrame(() => setBar(fill, 700));
   }, 800));
 }
 
