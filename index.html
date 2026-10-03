@@ -409,7 +409,7 @@ body.fever .card .fever-tag { display: block; animation: wobble .6s ease-in-out 
       <li><b>ノーミス</b>で単語クリア → +1秒（最大15秒）</li>
       <li><b>10コンボ</b>ごとに倍率アップ</li>
       <li><b>50コンボ</b>でフィーバー</li>
-      <li><b>ゲージ満タン</b>で Space → バブルボム</li>
+      <li><b>ゲージ満タン</b>で自動バブルボム</li>
       <li><b>ランク戦</b>は毎試合 ELO 獲得、200 たまるごとに昇格（全50段階）</li>
     </ul>
     <p class="note">日本語入力（IME）はオフにして、半角英数で打ってください。「ー」は − キー。<br>「shi / si」「chi / ti」「n / nn」など、どの打ち方でもOK。</p>
@@ -1255,18 +1255,18 @@ function miss() {
 }
 
 /* ---------- バブルボム ---------- */
-const GAUGE_KEYS = matchMedia('(pointer: coarse)').matches ? 'タップ!' : 'SPACE!';
 function renderGauge() {
   const g = Math.max(0, Math.min(100, G.gauge || 0)), full = g >= 100;
   $('gaugeFill').style.transform = `scaleX(${g / 100})`;
-  $('gaugeHint').textContent = full ? GAUGE_KEYS : Math.floor(g) + '%';
+  $('gaugeHint').textContent = Math.floor(g) + '%';
   $('gauge').classList.toggle('full', full);
 }
 function addGauge(v) {
   const was = G.gauge >= 100;
   G.gauge = Math.max(0, Math.min(100, G.gauge + v));
-  if (!was && G.gauge >= 100) { sfx.ready(); popText(innerWidth / 2, $('gauge').getBoundingClientRect().top, 'BOMB READY!', 'perfect', 50); }
   renderGauge();
+  // 満タンになったら自動で発動（Space は不要）
+  if (!was && G.gauge >= 100) bubbleBomb();
 }
 const bombQueue = [];
 function bubbleBomb() {
@@ -1313,7 +1313,7 @@ function runBombQueue(now) {
 
 function onChar(ch) {
   if (state !== 'playing') return;
-  if (ch === ' ') { bubbleBomb(); return; }
+  if (ch === ' ') return;
   const r = feed(G.cur, ch);
   if (r === 'miss') miss(); else hit(r === 'done');
 }
@@ -1514,7 +1514,6 @@ scr.game.addEventListener('pointerdown', focusInput);
 
 document.querySelectorAll('.mode').forEach(b => b.addEventListener('click', () => setMode(b.dataset.mode)));
 $('startBtn').addEventListener('click', startGame);
-$('gauge').addEventListener('click', bubbleBomb);
 $('retryBtn').addEventListener('click', startGame);
 $('backBtn').addEventListener('click', toTitle);
 if (matchMedia('(pointer: coarse)').matches) $('gameHint').textContent = 'カードをタップするとキーボードが出ます';
