@@ -162,6 +162,28 @@ kbd {
 .mode .m-best { font-size: .8rem; font-weight: 800; display: flex; justify-content: space-between; gap: 8px; border-top: 2px dashed var(--ink-soft); padding-top: 8px; margin-top: 4px; font-variant-numeric: tabular-nums; }
 .mode .m-key { font: 800 .7rem/1 var(--font-body); opacity: .6; }
 
+/* ランク戦パネル */
+.mode.rank-panel { grid-column: 1 / -1; display: flex; align-items: center; gap: 18px; padding: 16px 20px; }
+.emblem {
+  --tc: #d08a4e;
+  flex: none; width: 70px; height: 70px; border-radius: 50%;
+  border: 4px solid var(--ink); background: var(--tc);
+  display: grid; place-items: center;
+  font: 400 1.6rem/1 var(--font-display); color: var(--white);
+  -webkit-text-stroke: 1.5px var(--ink); paint-order: stroke fill;
+  box-shadow: inset 0 -7px 0 rgba(27, 24, 64, .18), 0 4px 0 var(--ink);
+}
+.emblem.legend { background: linear-gradient(135deg, var(--cherry), var(--lemon), var(--mint), var(--soda), var(--grape)); background-size: 300% 300%; animation: rainbow 3s linear infinite; }
+.rp-info { flex: 1; min-width: 0; display: grid; gap: 6px; }
+.rp-top { display: flex; flex-wrap: wrap; align-items: baseline; gap: 4px 12px; }
+.rp-name { font: 400 1.4rem/1.1 var(--font-display); }
+.rp-stars { color: var(--cherry); letter-spacing: .1em; font-weight: 800; }
+.rp-lv { font: 800 .78rem/1 var(--font-body); opacity: .65; font-variant-numeric: tabular-nums; }
+.rp-cond { font-size: .82rem; font-weight: 800; opacity: .75; }
+.rp-go { flex: none; display: grid; justify-items: center; gap: 6px; font: 400 1.05rem/1 var(--font-display); }
+.gbar.rp i { background: var(--cherry); }
+.mode.rank-panel[aria-checked="true"] { transform: translateY(-4px) rotate(-.6deg); }
+
 .rules { list-style: none; margin: 0; padding: 14px 20px; display: flex; flex-wrap: wrap; justify-content: center; gap: 8px 20px; font-weight: 800; font-size: .9rem; }
 .rules li { display: flex; align-items: center; gap: 8px; }
 .rules b { background: var(--cherry); color: var(--white); border-radius: 8px; padding: 2px 8px; font-size: .8rem; }
@@ -231,6 +253,12 @@ body.fever .card .fever-tag { display: block; animation: wobble .6s ease-in-out 
 .gauge.full .gbar i { background: linear-gradient(90deg, var(--cherry), var(--lemon), var(--mint), var(--soda), var(--grape)); background-size: 200% 100%; animation: rainbow 1s linear infinite; }
 .gauge.full .g-hint { background: var(--cherry); color: var(--white); border-radius: 8px; padding: 5px 8px; animation: wobble .5s ease-in-out infinite; }
 .flash { position: fixed; inset: 0; z-index: 45; pointer-events: none; background: var(--white); opacity: 0; }
+.norm { width: 100%; display: grid; grid-template-columns: auto 1fr auto; gap: 12px; align-items: center; padding: 10px 16px; }
+.norm .gbar i { background: var(--lemon); }
+.norm.done .gbar i { background: var(--mint); }
+.norm-num { font: 400 1.1rem/1 var(--font-display); font-variant-numeric: tabular-nums; white-space: nowrap; }
+.norm-sub { grid-column: 1 / -1; display: flex; flex-wrap: wrap; gap: 6px 14px; font-size: .8rem; font-weight: 800; }
+.norm-sub .bad { color: var(--cherry); }
 .next { font-weight: 800; font-size: .95rem; display: flex; gap: 10px; align-items: center; color: var(--ink); background: rgba(255, 255, 255, .55); border-radius: 999px; padding: 6px 16px; }
 .next .lbl { opacity: .6; }
 .hint { margin: 0; font-size: .82rem; font-weight: 800; opacity: .75; text-align: center; }
@@ -288,6 +316,16 @@ body.fever .card .fever-tag { display: block; animation: wobble .6s ease-in-out 
 .stats dt { font: 800 .72rem/1.2 var(--font-body); opacity: .65; }
 .stats dd { margin: 0; font: 400 1.5rem/1 var(--font-display); font-variant-numeric: tabular-nums; }
 .stats dd small { font: 800 .8rem/1 var(--font-body); margin-left: 3px; }
+.ranked-res { width: 100%; display: grid; gap: 10px; background: var(--white); border: 3px solid var(--ink); border-radius: 18px; padding: 16px 18px; }
+.rr-head { display: flex; align-items: center; gap: 14px; flex-wrap: wrap; }
+.verdict { font: 400 1.6rem/1 var(--font-display); padding: 8px 14px 10px; border: 3px solid var(--ink); border-radius: 12px; transform: rotate(-4deg); background: var(--ink-soft); color: var(--white); -webkit-text-stroke: 1px var(--ink); paint-order: stroke fill; }
+.verdict.win { background: var(--cherry); }
+.rr-rank { display: flex; align-items: center; gap: 10px; flex: 1; min-width: 0; }
+.rr-rank .emblem { width: 48px; height: 48px; font-size: 1.1rem; border-width: 3px; }
+.rr-rank strong { font: 400 1.2rem/1.2 var(--font-display); }
+.rr-delta { font: 400 1.3rem/1 var(--font-display); font-variant-numeric: tabular-nums; }
+.rr-delta.up { color: var(--cherry); }
+.rr-note { margin: 0; font-size: .85rem; font-weight: 800; opacity: .8; }
 .actions { display: flex; flex-wrap: wrap; gap: 14px; justify-content: center; }
 
 .toast {
@@ -307,6 +345,9 @@ body.fever .card .fever-tag { display: block; animation: wobble .6s ease-in-out 
   .hud-time { grid-column: 1 / -1; order: 3; }
   .card { padding: 26px 16px 22px; min-height: 190px; }
   .stats { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .mode.rank-panel { flex-wrap: wrap; gap: 12px 14px; }
+  .emblem { width: 56px; height: 56px; font-size: 1.3rem; }
+  .rp-go { flex-direction: row; width: 100%; justify-content: center; }
   .rank { width: 110px; height: 110px; font-size: 3rem; }
 }
 @media (prefers-reduced-motion: reduce) {
@@ -331,7 +372,16 @@ body.fever .card .fever-tag { display: block; animation: wobble .6s ease-in-out 
       <p class="tagline">打つたびに泡がはじける、炭酸系タイピングゲーム</p>
     </div>
 
-    <div class="modes" role="radiogroup" aria-label="むずかしさ">
+    <div class="modes" role="radiogroup" aria-label="モード">
+      <button class="mode rank-panel" type="button" role="radio" data-mode="ranked" aria-checked="false">
+        <span class="emblem" id="tEmb">1</span>
+        <span class="rp-info">
+          <span class="rp-top"><span class="rp-name" id="tRankName">ブロンズ 1</span><span class="rp-stars" id="tStars">★☆☆☆☆</span><span class="rp-lv" id="tLv">Lv.1 / 50</span></span>
+          <span class="gbar rp"><i id="tRp"></i></span>
+          <span class="rp-cond" id="tCond">次の試合: ノルマ 60打</span>
+        </span>
+        <span class="rp-go">ランク戦<span class="m-key">4</span></span>
+      </button>
       <button class="mode" type="button" role="radio" data-mode="easy" aria-checked="false">
         <span class="m-name">やさしい</span>
         <span class="m-key">1</span>
@@ -360,6 +410,7 @@ body.fever .card .fever-tag { display: block; animation: wobble .6s ease-in-out 
       <li><b>10コンボ</b>ごとに倍率アップ</li>
       <li><b>50コンボ</b>でフィーバー</li>
       <li><b>ゲージ満タン</b>で Space → バブルボム</li>
+      <li><b>ランク戦</b>はノルマ達成で RP 獲得、100RP で昇格（全50段階）</li>
     </ul>
     <p class="note">日本語入力（IME）はオフにして、半角英数で打ってください。「ー」は − キー。<br>「shi / si」「chi / ti」「n / nn」など、どの打ち方でもOK。</p>
   </section>
@@ -382,6 +433,12 @@ body.fever .card .fever-tag { display: block; animation: wobble .6s ease-in-out 
     </div>
 
     <div class="stage">
+      <div id="normRow" class="norm sticker" hidden>
+        <span class="lbl">ノルマ</span>
+        <span class="gbar"><i id="normFill"></i></span>
+        <span class="norm-num" id="normNum">0 / 60</span>
+        <span class="norm-sub" id="normSub"></span>
+      </div>
       <div id="card" class="card sticker">
         <span class="fever-tag">FEVER ×2</span>
         <div id="wDisp" class="w-disp"></div>
@@ -412,6 +469,15 @@ body.fever .card .fever-tag { display: block; animation: wobble .6s ease-in-out 
         <span class="lbl">Score</span>
         <span id="resScore" class="hud-num">0</span>
         <span id="newBest" class="newbest" hidden>NEW BEST!</span>
+      </div>
+      <div id="rankedRes" class="ranked-res" hidden>
+        <div class="rr-head">
+          <span id="verdict" class="verdict">WIN!</span>
+          <span class="rr-rank"><span class="emblem" id="rEmb">1</span><strong id="rRankName">ブロンズ 1</strong></span>
+          <span id="rDelta" class="rr-delta">+40 RP</span>
+        </div>
+        <span class="gbar rp"><i id="rRp"></i></span>
+        <p class="rr-note" id="rNote"></p>
       </div>
       <dl class="stats">
         <div><dt>打鍵数 / 分</dt><dd id="sKpm">0</dd></div>
@@ -493,7 +559,7 @@ const WORDS = {
     'ちょこれーとをはんぶんこしよう|チョコレートを半分こしよう'
   ]
 };
-const MODE_NAME = { easy: 'やさしい', normal: 'ふつう', hard: 'むずかしい' };
+const MODE_NAME = { easy: 'やさしい', normal: 'ふつう', hard: 'むずかしい', ranked: 'ランク戦' };
 const parseList = a => a.map(s => { const [k, d] = s.split('|'); return { k, d: d || k }; });
 
 /* =========================================================
@@ -928,15 +994,59 @@ const BONUS_MAX = 15;
 
 let state = 'title';
 let mode = 'normal';
-try { const m = localStorage.getItem('shuwa-mode'); if (WORDS[m]) mode = m; } catch (e) {}
+try { const m = localStorage.getItem('shuwa-mode'); if (WORDS[m] || m === 'ranked') mode = m; } catch (e) {}
+
+/* ---------- ランク戦（全50段階） ---------- */
+const MAX_LV = 50;
+const TIERS = [
+  ['ブロンズ', '#d08a4e'], ['シルバー', '#b9c3cf'], ['ゴールド', '#ffd23f'], ['プラチナ', '#7fe3d6'], ['エメラルド', '#3fd18a'],
+  ['サファイア', '#4a8cff'], ['ルビー', '#ff4d6d'], ['アメジスト', '#a77bff'], ['ダイヤモンド', '#bfefff'], ['レジェンド', '']
+];
+// ティアごとの出題の割合 [やさしい, ふつう, むずかしい]
+const MIX = [[1, 0, 0], [.6, .4, 0], [.3, .7, 0], [0, 1, 0], [0, .8, .2], [0, .6, .4], [0, .4, .6], [0, .2, .8], [0, 0, 1], [0, 0, 1]];
+const tierOf = lv => Math.floor((lv - 1) / 5);
+const rankName = lv => `${TIERS[tierOf(lv)][0]} ${(lv - 1) % 5 + 1}`;
+const rankStars = lv => '★'.repeat((lv - 1) % 5 + 1) + '☆'.repeat(4 - (lv - 1) % 5);
+const normOf = lv => Math.round(60 + 390 * Math.pow((lv - 1) / (MAX_LV - 1), 1.3));  // 正しく打つ数（Lv1: 60 → Lv50: 450）
+const accOf = lv => lv <= 10 ? 0 : lv <= 25 ? 85 : lv <= 40 ? 90 : 95;               // 必要な正確率
+const penOf = lv => lv <= 25 ? 0 : lv <= 40 ? .5 : 1;                                 // ミス1回で減る秒数
+function condText(lv) {
+  const a = [`ノルマ ${normOf(lv)}打`];
+  if (accOf(lv)) a.push(`正確率 ${accOf(lv)}%以上`);
+  if (penOf(lv)) a.push(`ミスで −${penOf(lv)}秒`);
+  return a.join('・');
+}
+function paintEmblem(e, lv) {
+  const t = tierOf(lv);
+  e.textContent = lv;
+  e.classList.toggle('legend', t === TIERS.length - 1);
+  if (TIERS[t][1]) e.style.setProperty('--tc', TIERS[t][1]);
+}
+const RK = { lv: 1, rp: 0, streak: 0, wins: 0, games: 0 };
+try { Object.assign(RK, JSON.parse(localStorage.getItem('shuwa-ranked') || '{}')); } catch (e) {}
+RK.lv = Math.max(1, Math.min(MAX_LV, RK.lv | 0)); RK.rp = Math.max(0, RK.rp | 0);
+function saveRanked() { try { localStorage.setItem('shuwa-ranked', JSON.stringify(RK)); } catch (e) {} }
+const LISTS = { easy: parseList(WORDS.easy), normal: parseList(WORDS.normal), hard: parseList(WORDS.hard) };
 
 const G = {};
 function resetGame() {
   Object.assign(G, { left: TIME, elapsed: 0, score: 0, shown: 0, combo: 0, maxCombo: 0, ok: 0, miss: 0, words: 0,
-    fever: false, bag: [], cur: null, next: null, lastTick: 0, bonus: 0, gauge: 0, bombs: 0 });
+    fever: false, bag: [], cur: null, next: null, lastTick: 0, bonus: 0, gauge: 0, bombs: 0,
+    ranked: mode === 'ranked', lv: RK.lv, norm: normOf(RK.lv), acc: accOf(RK.lv), pen: penOf(RK.lv), normDone: false });
   renderGauge();
+  $('normRow').hidden = !G.ranked;
+  if (G.ranked) renderNorm();
 }
 function draw() {
+  if (G.ranked) {
+    const mix = MIX[tierOf(G.lv)];
+    let r = Math.random(), i = 0;
+    while (i < 2 && r >= mix[i]) { r -= mix[i]; i++; }
+    const list = LISTS[['easy', 'normal', 'hard'][i]];
+    let w;
+    do { w = list[(Math.random() * list.length) | 0]; } while ((G.cur && w.k === G.cur.k) || (G.next && w.k === G.next.k));
+    return w;
+  }
   if (!G.bag.length) {
     G.bag = parseList(WORDS[mode]).sort(() => Math.random() - .5);
     if (G.cur && G.bag[G.bag.length - 1].k === G.cur.k) G.bag.unshift(G.bag.pop());
@@ -954,6 +1064,22 @@ function setBest(m, v) { try { localStorage.setItem('shuwa-best-' + m, String(v)
 function renderTitle() {
   document.querySelectorAll('.mode').forEach(b => b.setAttribute('aria-checked', String(b.dataset.mode === mode)));
   document.querySelectorAll('[data-best]').forEach(s => { const v = getBest(s.dataset.best); s.textContent = v ? v.toLocaleString() : '—'; });
+  paintEmblem($('tEmb'), RK.lv);
+  $('tRankName').textContent = rankName(RK.lv);
+  $('tStars').textContent = rankStars(RK.lv);
+  $('tLv').textContent = `Lv.${RK.lv} / ${MAX_LV}` + (RK.streak > 1 ? `　${RK.streak}連勝中` : '');
+  $('tRp').style.transform = `scaleX(${RK.lv >= MAX_LV ? 1 : RK.rp / 100})`;
+  $('tCond').textContent = (RK.lv >= MAX_LV ? `最高ランク！ ${RK.rp} RP　` : `${RK.rp} / 100 RP　`) + '次の試合: ' + condText(RK.lv);
+}
+function renderNorm() {
+  const total = G.ok + G.miss, acc = total ? G.ok / total * 100 : 100;
+  $('normFill').style.transform = `scaleX(${Math.min(1, G.ok / G.norm)})`;
+  $('normNum').textContent = `${G.ok} / ${G.norm}`;
+  $('normRow').classList.toggle('done', G.normDone);
+  const sub = [`<span>${rankName(G.lv)}</span>`];
+  if (G.acc) sub.push(`<span class="${acc < G.acc ? 'bad' : ''}">正確率 ${acc.toFixed(1)}% / ${G.acc}%以上</span>`);
+  if (G.pen) sub.push(`<span>ミスで −${G.pen}秒</span>`);
+  $('normSub').innerHTML = sub.join('');
 }
 function setMode(m) {
   if (m === mode) return;
@@ -1039,6 +1165,15 @@ function hit(done) {
     burst(x, y + 14, G.fever ? 7 : 5, 240, ['dot', 'dot', 'star'], { arc: [Math.PI * .15, Math.PI * .85], life: .45, size: 3.2, g: 900 });
   }
 
+  if (G.ranked) {
+    if (!G.normDone && G.ok >= G.norm) {
+      G.normDone = true;
+      sfx.fanfare();
+      banner('ノルマ達成!', 1300);
+      confettiRain(120);
+    }
+    renderNorm();
+  }
   if (MILESTONES.includes(G.combo) || (G.combo > 500 && G.combo % 100 === 0)) milestone();
   if (done) clearWord();
 }
@@ -1095,6 +1230,14 @@ function miss() {
   renderHud();
   sfx.miss();
   el.wRoma.classList.add('bad');
+  if (G.ranked) {
+    renderNorm();
+    if (G.pen) {
+      G.left -= G.pen;
+      const tr = el.hudTime.getBoundingClientRect();
+      popText(tr.left + tr.width / 2, tr.bottom + 12, `−${G.pen}秒`, '', 30);
+    }
+  }
   if (hadCombo >= 10) {
     const r = el.combo.getBoundingClientRect();
     popText(r.left + r.width / 2, r.bottom + 10, 'コンボ切れ…', '', 30);
@@ -1174,6 +1317,7 @@ let cdTimers = [];
 function focusInput() { try { el.ki.focus({ preventScroll: true }); } catch (e) { el.ki.focus(); } }
 function startGame() {
   if (state !== 'title' && state !== 'result') return;
+  cdTimers.forEach(clearTimeout); cdTimers = [];
   ac();
   resetGame();
   setFever(false);
@@ -1228,7 +1372,7 @@ function showResult() {
   $('rank').textContent = rk[0];
   $('rank').className = 'rank r-' + rk[0];
   $('rankName').textContent = rk[2];
-  $('resMode').textContent = MODE_NAME[mode];
+  $('resMode').textContent = G.ranked ? `ランク戦 Lv.${G.lv}` : MODE_NAME[mode];
   $('sKpm').textContent = Math.round(kpm);
   $('sAcc').innerHTML = (acc * 100).toFixed(1) + '<small>%</small>';
   $('sCombo').textContent = G.maxCombo;
@@ -1236,6 +1380,8 @@ function showResult() {
   $('sMiss').textContent = G.miss;
   $('sBomb').textContent = G.bombs;
   $('newBest').hidden = !isBest;
+  const rr = G.ranked ? settleRanked(acc) : null;
+  $('rankedRes').hidden = !rr;
   show('result');
 
   // スコアのカウントアップ
@@ -1250,11 +1396,69 @@ function showResult() {
       const c = center(r.getBoundingClientRect());
       ring(c.x, c.y, 30, 160, '#ffe04a', .6, 10);
       burst(c.x, c.y, 30, 600, ['star', 'conf'], { life: 1, size: 7, g: 700, up: 200 });
-      if (isBest || 'SS S A'.includes(rk[0])) { sfx.fanfare(); confettiRain(isBest ? 200 : 110); }
+      if (rr) animateRanked(rr);
+      else if (isBest || 'SS S A'.includes(rk[0])) { sfx.fanfare(); confettiRain(isBest ? 200 : 110); }
       else sfx.clear(false);
     }
   })(t0);
   $('retryBtn').focus({ preventScroll: true });
+}
+
+/* ---------- ランク戦の精算 ---------- */
+function settleRanked(acc) {
+  const before = { lv: RK.lv, rp: RK.rp };
+  const accOk = acc * 100 >= G.acc, normOk = G.ok >= G.norm, win = accOk && normOk;
+  let gain;
+  RK.games++;
+  if (win) {
+    RK.wins++; RK.streak++;
+    const over = Math.max(0, Math.min(30, Math.floor((G.ok / G.norm - 1) * 100)));  // ノルマ超過ぶん
+    gain = 40 + over + Math.min(30, (RK.streak - 1) * 10);                          // 連勝ボーナス
+  } else {
+    RK.streak = 0;
+    gain = -Math.min(20, RK.rp);  // RP は 0 未満にならず、降格もしない
+  }
+  RK.rp += gain;
+  let ups = 0;
+  while (RK.lv < MAX_LV && RK.rp >= 100) { RK.rp -= 100; RK.lv++; ups++; }
+  saveRanked();
+  const reasons = [];
+  reasons.push(`正しく打った数 ${G.ok} / ノルマ ${G.norm}${normOk ? ' ✓' : ' ✗'}`);
+  if (G.acc) reasons.push(`正確率 ${(acc * 100).toFixed(1)}% / ${G.acc}%${accOk ? ' ✓' : ' ✗'}`);
+  if (win && RK.streak > 1) reasons.push(`${RK.streak}連勝ボーナス`);
+
+  $('verdict').textContent = win ? 'WIN!' : 'LOSE';
+  $('verdict').className = 'verdict' + (win ? ' win' : '');
+  paintEmblem($('rEmb'), before.lv);
+  $('rRankName').textContent = rankName(before.lv);
+  $('rDelta').textContent = (gain >= 0 ? '+' : '−') + Math.abs(gain) + ' RP';
+  $('rDelta').className = 'rr-delta' + (gain > 0 ? ' up' : '');
+  $('rRp').style.transform = `scaleX(${before.lv >= MAX_LV ? 1 : before.rp / 100})`;
+  $('rNote').textContent = reasons.join('　');
+  return { before, after: { lv: RK.lv, rp: RK.rp }, ups, win };
+}
+function animateRanked(rr) {
+  const bar = $('rRp');
+  const setBar = (v, ms) => { bar.style.transition = `transform ${ms}ms cubic-bezier(.3,.9,.3,1)`; bar.style.transform = `scaleX(${v})`; };
+  if (!rr.win) { sfx.miss(); setBar(rr.after.lv >= MAX_LV ? 1 : rr.after.rp / 100, 600); return; }
+  sfx.clear(true);
+  if (!rr.ups) { setBar(rr.after.lv >= MAX_LV ? 1 : rr.after.rp / 100, 800); return; }
+  // 昇格: いったん満タンにしてから RANK UP!
+  setBar(1, 700);
+  cdTimers.push(setTimeout(() => {
+    paintEmblem($('rEmb'), rr.after.lv);
+    $('rRankName').textContent = rankName(rr.after.lv);
+    bump($('rEmb'), 1.8, 0);
+    const tierUp = tierOf(rr.after.lv) > tierOf(rr.before.lv);
+    showOverlay(el.countdown, tierUp ? TIERS[tierOf(rr.after.lv)][0] + '!' : 'RANK UP!', 1500);
+    sfx.fever(); setTimeout(() => sfx.fanfare(), 350);
+    confettiRain(tierUp ? 260 : 160);
+    const c = center($('rEmb').getBoundingClientRect());
+    ring(c.x, c.y, 20, 220, '#ffe04a', .8, 12);
+    burst(c.x, c.y, 40, 700, ['star', 'conf'], { life: 1.2, size: 8, g: 600, up: 250 });
+    bar.style.transition = 'none'; bar.style.transform = 'scaleX(0)';
+    requestAnimationFrame(() => setBar(rr.after.lv >= MAX_LV ? 1 : rr.after.rp / 100, 700));
+  }, 800));
 }
 
 /* ---------- 入力 ---------- */
@@ -1270,8 +1474,11 @@ addEventListener('keydown', e => {
     else if (k === '1') setMode('easy');
     else if (k === '2') setMode('normal');
     else if (k === '3') setMode('hard');
+    else if (k === '4' || k === 'r') setMode('ranked');
     else if (k === 'ArrowLeft') setMode(mode === 'hard' ? 'normal' : 'easy');
     else if (k === 'ArrowRight') setMode(mode === 'easy' ? 'normal' : 'hard');
+    else if (k === 'ArrowUp') setMode('ranked');
+    else if (k === 'ArrowDown' && mode === 'ranked') setMode('normal');
     return;
   }
   if (state === 'result') {
@@ -1337,7 +1544,7 @@ renderTitle();
 requestAnimationFrame(frame);
 
 // 動作確認用
-window.__shuwa = { cands, feed, guide, makeWord, fullRoma, G, M, S };
+window.__shuwa = { cands, feed, guide, makeWord, fullRoma, G, M, S, RK, normOf };
 })();
 </script>
 </body>
