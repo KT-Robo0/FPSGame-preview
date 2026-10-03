@@ -112,6 +112,8 @@ kbd {
   display: grid; place-items: center;
 }
 .icon-btn svg { width: 24px; height: 24px; }
+#bgmBtn { right: 72px; }
+.icon-btn[aria-pressed="false"] { background: var(--ink-soft); }
 
 /* ---------- title ---------- */
 .logo { text-align: center; margin-top: 36px; display: grid; justify-items: center; gap: 4px; }
@@ -166,7 +168,8 @@ kbd {
 .note { margin: 0; font-size: .85rem; font-weight: 800; color: var(--ink); opacity: .8; text-align: center; max-width: 60ch; }
 
 /* ---------- game ---------- */
-.hud { width: 100%; display: grid; grid-template-columns: 1fr 1.4fr 1fr; gap: 14px; align-items: stretch; margin-top: 4px; padding-right: 58px; }
+.hud { width: 100%; display: grid; grid-template-columns: 1fr 1.4fr 1fr; gap: 14px; align-items: stretch; margin-top: 4px; }
+@media (max-width: 1100px) { .hud { padding-right: 118px; } }
 .hud > div { padding: 10px 16px 12px; display: flex; flex-direction: column; justify-content: center; gap: 6px; min-width: 0; }
 .hud-num { font: 400 clamp(1.4rem, 4.4vw, 2.2rem)/1 var(--font-display); font-variant-numeric: tabular-nums; }
 .hud-time .row { display: flex; justify-content: space-between; align-items: baseline; }
@@ -230,7 +233,7 @@ body.fever .card .fever-tag { display: block; animation: wobble .6s ease-in-out 
   pointer-events: none;
   white-space: nowrap;
 }
-#banner { font-size: clamp(2.2rem, 9vw, 5rem); color: var(--lemon); top: 30%; }
+#banner { font-size: clamp(1.8rem, 6.5vw, 3.4rem); color: var(--lemon); -webkit-text-stroke-width: 3px; text-shadow: 0 5px 0 var(--ink); }
 
 .pop-text {
   position: absolute;
@@ -287,7 +290,7 @@ body.fever .card .fever-tag { display: block; animation: wobble .6s ease-in-out 
   .mode { grid-template-columns: 1fr auto; align-items: center; }
   .mode .m-desc { grid-column: 1; }
   .mode .m-best { grid-column: 1 / -1; }
-  .hud { grid-template-columns: 1fr 1fr; padding-right: 58px; gap: 10px; }
+  .hud { grid-template-columns: 1fr 1fr; gap: 10px; }
   .hud-time { grid-column: 1 / -1; order: 3; }
   .card { padding: 26px 16px 22px; min-height: 190px; }
   .stats { grid-template-columns: repeat(2, minmax(0, 1fr)); }
@@ -303,7 +306,8 @@ body.fever .card .fever-tag { display: block; animation: wobble .6s ease-in-out 
 <body>
 <canvas id="bg" aria-hidden="true"></canvas>
 
-<button id="muteBtn" class="icon-btn" type="button" aria-label="サウンドを切り替え" title="サウンド"></button>
+<button id="bgmBtn" class="icon-btn" type="button" aria-label="BGMを切り替え" title="BGM"></button>
+<button id="muteBtn" class="icon-btn" type="button" aria-label="すべての音を切り替え" title="サウンド"></button>
 
 <main id="app">
   <!-- TITLE -->
@@ -632,6 +636,111 @@ const sfx = {
 };
 
 /* =========================================================
+   BGM（ステップシーケンサーで合成）
+   王道進行 F → G → Em → Am、140BPM。フィーバー中と残り10秒は盛り上げる
+   ========================================================= */
+const mf = m => 440 * Math.pow(2, (m - 69) / 12);
+const PROG = [
+  { root: 41, tones: [65, 69, 72] },  // F
+  { root: 43, tones: [67, 71, 74] },  // G
+  { root: 40, tones: [64, 67, 71] },  // Em
+  { root: 45, tones: [69, 72, 76] }   // Am
+];
+// 8分音符ごとのメロディ（0 は休符）。効果音と同じ C のペンタトニックで、打鍵音と喧嘩しない
+const MEL = [
+  [76, 0, 79, 0, 81, 79, 76, 0],
+  [74, 0, 76, 0, 79, 0, 74, 0],
+  [79, 0, 76, 0, 74, 76, 79, 0],
+  [81, 0, 79, 76, 0, 74, 76, 0],
+  [76, 0, 79, 0, 81, 0, 84, 81],
+  [79, 0, 76, 79, 0, 81, 79, 0],
+  [76, 0, 74, 0, 72, 74, 76, 0],
+  [72, 0, 74, 76, 0, 79, 81, 0]
+];
+const M = { on: true, timer: 0, step: 0, next: 0, bus: null, noise: null };
+try { M.on = localStorage.getItem('shuwa-bgm') !== '0'; } catch (e) {}
+function mVoice(type, m, t, dur, vol, cut) {
+  const c = S.ctx, o = c.createOscillator(), g = c.createGain();
+  o.type = type; o.frequency.value = mf(m);
+  g.gain.setValueAtTime(.0001, t);
+  g.gain.exponentialRampToValueAtTime(vol, t + .008);
+  g.gain.exponentialRampToValueAtTime(.0001, t + dur);
+  let out = o;
+  if (cut) { const f = c.createBiquadFilter(); f.type = 'lowpass'; f.frequency.value = cut; o.connect(f); out = f; }
+  out.connect(g).connect(M.bus);
+  o.start(t); o.stop(t + dur + .05);
+}
+function mNoise(t, dur, vol, type, freq) {
+  const c = S.ctx, n = c.createBufferSource(), f = c.createBiquadFilter(), g = c.createGain();
+  n.buffer = M.noise; f.type = type; f.frequency.value = freq;
+  g.gain.setValueAtTime(vol, t); g.gain.exponentialRampToValueAtTime(.0001, t + dur);
+  n.connect(f).connect(g).connect(M.bus);
+  n.start(t); n.stop(t + dur + .02);
+}
+function mKick(t) {
+  const c = S.ctx, o = c.createOscillator(), g = c.createGain();
+  o.frequency.setValueAtTime(160, t); o.frequency.exponentialRampToValueAtTime(42, t + .13);
+  g.gain.setValueAtTime(.9, t); g.gain.exponentialRampToValueAtTime(.0001, t + .18);
+  o.connect(g).connect(M.bus); o.start(t); o.stop(t + .2);
+}
+function mStep(step, t) {
+  const s = step % 16, bar = Math.floor(step / 16), ch = PROG[bar % 4];
+  const fever = G.fever, hot = state === 'playing' && G.left <= 10;
+  // ドラム
+  if (s % 4 === 0) mKick(t);
+  if (fever && s === 14) mKick(t);
+  if (s === 4 || s === 12) { mNoise(t, .15, .4, 'bandpass', 1800); mVoice('triangle', 55, t, .08, .2); }
+  if (s % 4 === 2 || ((fever || hot) && s % 2 === 1)) mNoise(t, .035, .2, 'highpass', 7000);
+  // ベース（8分、オクターブで跳ねる）
+  if (s % 2 === 0) mVoice('sawtooth', ch.root + (s % 8 === 4 ? 12 : 0), t, .17, .26, 650);
+  // コードのカッティング（裏拍）
+  if (s % 4 === 2) for (const n of ch.tones) mVoice('square', n, t, .09, .04, 2400);
+  // メロディ
+  if (s % 2 === 0) {
+    const n = MEL[bar % MEL.length][s / 2];
+    if (n) mVoice('square', n + (fever ? 12 : 0), t, .17, .055, 3200);
+  }
+  // フィーバー / ラストスパートのキラキラアルペジオ
+  if (fever || hot) mVoice('triangle', ch.tones[s % 3] + 12 + (fever ? 12 : 0), t, .07, .05);
+}
+function mTick() {
+  const c = S.ctx;
+  if (!c || !M.bus) return;
+  if (M.next < c.currentTime - .05) M.next = c.currentTime + .02;  // タブが裏にいた後は追いつかせずに再開
+  while (M.next < c.currentTime + .12) {
+    if (!S.muted && M.on) mStep(M.step, M.next);
+    const bpm = state === 'playing' && G.left <= 10 ? 158 : 140;
+    M.next += 60 / bpm / 4;
+    M.step++;
+  }
+}
+const music = {
+  start() {
+    const c = ac(); if (!c) return;
+    this.stop(true);
+    if (!M.noise) {
+      const len = c.sampleRate * .5, b = c.createBuffer(1, len, c.sampleRate), d = b.getChannelData(0);
+      for (let i = 0; i < len; i++) d[i] = Math.random() * 2 - 1;
+      M.noise = b;
+    }
+    M.bus = c.createGain(); M.bus.gain.value = .5; M.bus.connect(S.master);
+    M.step = 0; M.next = c.currentTime + .03;
+    if (!S.muted && M.on) mNoise(M.next, 1.2, .3, 'highpass', 5000);
+    mTick();
+    M.timer = setInterval(mTick, 25);
+  },
+  stop(now) {
+    clearInterval(M.timer); M.timer = 0;
+    if (M.bus && S.ctx) {
+      const bus = M.bus;
+      bus.gain.setTargetAtTime(0, S.ctx.currentTime, now ? .03 : .35);
+      setTimeout(() => bus.disconnect(), now ? 300 : 2000);
+    }
+    M.bus = null;
+  }
+};
+
+/* =========================================================
    エフェクト（canvas パーティクル）
    ========================================================= */
 const RM = matchMedia('(prefers-reduced-motion: reduce)').matches;
@@ -648,16 +757,17 @@ function resize() {
 }
 addEventListener('resize', resize); resize();
 
-const parts = [];
+const parts = [], backParts = [];  // backParts はカードの後ろ（背景キャンバス）に描く
 const amt = n => Math.max(1, Math.round(n * (RM ? .3 : 1)));
-function spawn(o) { parts.push(Object.assign({ vx: 0, vy: 0, g: 0, drag: .98, rot: 0, vr: 0, life: 1, max: 1, size: 4, color: '#fff', kind: 'dot' }, o)); }
+function spawn(o) { (o.back ? backParts : parts).push(Object.assign({ vx: 0, vy: 0, g: 0, drag: .98, rot: 0, vr: 0, life: 1, max: 1, size: 4, color: '#fff', kind: 'dot' }, o)); }
 function burst(x, y, n, speed, kinds, opts = {}) {
   for (let i = 0; i < amt(n); i++) {
-    const a = Math.random() * Math.PI * 2, s = speed * (.35 + Math.random() * .75);
+    const [a0, a1] = opts.arc || [0, Math.PI * 2];
+    const a = a0 + Math.random() * (a1 - a0), s = speed * (.35 + Math.random() * .75);
     const life = (opts.life || .7) * (.6 + Math.random() * .6);
     spawn({ x, y, vx: Math.cos(a) * s, vy: Math.sin(a) * s - (opts.up || 0), g: opts.g ?? 600, drag: opts.drag ?? .96,
       kind: pick(kinds), color: pick(opts.colors || COLORS), size: (opts.size || 5) * (.6 + Math.random() * .8),
-      rot: Math.random() * 6, vr: (Math.random() - .5) * 14, life, max: life });
+      rot: Math.random() * 6, vr: (Math.random() - .5) * 14, life, max: life, back: opts.back });
   }
 }
 function ring(x, y, r0, r1, color, life, width = 4) { spawn({ x, y, kind: 'ring', r0, r1, color, life, max: life, size: width }); }
@@ -665,7 +775,7 @@ function confettiRain(n) {
   for (let i = 0; i < amt(n); i++) {
     const life = 2 + Math.random() * 1.5;
     spawn({ x: Math.random() * W, y: -20 - Math.random() * H * .4, vx: (Math.random() - .5) * 120, vy: 80 + Math.random() * 160,
-      g: 120, drag: .995, kind: 'conf', color: pick(COLORS), size: 7 + Math.random() * 6, rot: Math.random() * 6, vr: (Math.random() - .5) * 12, life, max: life });
+      g: 120, drag: .995, kind: 'conf', color: pick(COLORS), size: 7 + Math.random() * 6, rot: Math.random() * 6, vr: (Math.random() - .5) * 12, life, max: life, back: true });
   }
 }
 function drawStar(c, r) {
@@ -673,8 +783,7 @@ function drawStar(c, r) {
   for (let i = 0; i < 10; i++) { const a = i * Math.PI / 5 - Math.PI / 2, rr = i % 2 ? r * .45 : r; c.lineTo(Math.cos(a) * rr, Math.sin(a) * rr); }
   c.closePath(); c.fill(); c.stroke();
 }
-function drawParts(dt) {
-  fx.clearRect(0, 0, W, H);
+function drawParts(fx, parts, dt) {
   fx.lineJoin = 'round';
   for (let i = parts.length - 1; i >= 0; i--) {
     const p = parts[i];
@@ -736,6 +845,7 @@ function drawBg(dt, t) {
     bg.beginPath(); bg.arc(b.x - b.r * .35, b.y - b.r * .35, b.r * .22, 0, Math.PI * 2); bg.fill();
   }
   bg.globalAlpha = 1;
+  drawParts(bg, backParts, dt);
 }
 
 // 浮かぶ文字
@@ -758,8 +868,9 @@ function bump(el, scale = 1.35, rot = -4) {
   el.animate([{ transform: `scale(${scale}) rotate(${rot - 4}deg)` }, { transform: `scale(1) rotate(${rot}deg)` }],
     { duration: 220, easing: 'cubic-bezier(.2,1.6,.4,1)' });
 }
-function showOverlay(el, text, ms = 900) {
+function showOverlay(el, text, ms = 900, top = null) {
   el.textContent = text; el.hidden = false;
+  el.style.top = top == null ? '' : top + 'px';
   const a = el.animate([
     { transform: 'translate(-50%,-50%) scale(.2) rotate(-12deg)', opacity: 0 },
     { transform: 'translate(-50%,-50%) scale(1.15) rotate(3deg)', opacity: 1, offset: .25 },
@@ -777,8 +888,13 @@ const scr = { title: $('title'), game: $('game'), result: $('result') };
 const el = {
   score: $('score'), combo: $('combo'), mult: $('mult'), timeTxt: $('timeTxt'), timeBar: $('timeBar'), hudTime: $('hudTime'),
   card: $('card'), wDisp: $('wDisp'), wKana: $('wKana'), wRoma: $('wRoma'), nextW: $('nextW'),
-  countdown: $('countdown'), banner: $('banner'), toast: $('toast'), ki: $('ki'), mute: $('muteBtn')
+  countdown: $('countdown'), banner: $('banner'), toast: $('toast'), ki: $('ki'), mute: $('muteBtn'), bgm: $('bgmBtn')
 };
+// コンボなどの演出文字は、打つ文字をふさがないようカードの下に出す
+function banner(text, ms) {
+  const r = el.card.getBoundingClientRect();
+  showOverlay(el.banner, text, ms, Math.min(r.bottom + 44, innerHeight - 40));
+}
 const TIME = 60;
 const MILESTONES = [10, 25, 50, 75, 100, 150, 200, 250, 300, 400, 500];
 const FEVER_AT = 50;
@@ -823,8 +939,18 @@ function renderMute() {
   el.mute.innerHTML = S.muted
     ? '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><path d="M4 9h4l5-4v14l-5-4H4z"/><path d="M17 9l5 6M22 9l-5 6"/></svg>'
     : '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><path d="M4 9h4l5-4v14l-5-4H4z"/><path d="M16.5 8.5a5 5 0 0 1 0 7M19.5 5.5a9 9 0 0 1 0 13"/></svg>';
-  el.mute.setAttribute('aria-pressed', String(S.muted));
+  el.mute.setAttribute('aria-pressed', String(!S.muted));
+  el.bgm.innerHTML = M.on
+    ? '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><path d="M9 18V5l11-2v13"/><circle cx="6" cy="18" r="3"/><circle cx="17" cy="16" r="3"/></svg>'
+    : '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><path d="M9 18V5l11-2v13"/><circle cx="6" cy="18" r="3"/><circle cx="17" cy="16" r="3"/><path d="M3 3l18 18"/></svg>';
+  el.bgm.setAttribute('aria-pressed', String(M.on));
 }
+el.bgm.addEventListener('click', () => {
+  M.on = !M.on;
+  try { localStorage.setItem('shuwa-bgm', M.on ? '1' : '0'); } catch (e) {}
+  renderMute();
+  if (state === 'playing' || state === 'countdown') focusInput();
+});
 el.mute.addEventListener('click', () => {
   S.muted = !S.muted;
   try { localStorage.setItem('shuwa-muted', S.muted ? '1' : '0'); } catch (e) {}
@@ -880,9 +1006,9 @@ function hit(done) {
   const sp = el.wRoma.querySelector('.just');
   if (sp) {
     const { x, y } = center(sp.getBoundingClientRect());
-    const big = G.fever ? 1.6 : 1 + Math.min(G.combo, 50) / 80;
-    ring(x, y, 6, 30 * big, G.fever ? pick(COLORS) : '#ffffff', .35, 4);
-    burst(x, y, Math.round(6 * big), 260 * big, ['dot', 'dot', 'star'], { life: .55, size: 3.5, g: 500, up: 120 });
+    // 文字を隠さないよう、しずくは下向きにはじけさせる
+    ring(x, y, 6, 26, G.fever ? pick(COLORS) : '#ffffff', .3, 3);
+    burst(x, y + 14, G.fever ? 7 : 5, 240, ['dot', 'dot', 'star'], { arc: [Math.PI * .15, Math.PI * .85], life: .45, size: 3.2, g: 900 });
   }
 
   if (MILESTONES.includes(G.combo) || (G.combo > 500 && G.combo % 100 === 0)) milestone();
@@ -893,11 +1019,11 @@ function milestone() {
   if (G.combo >= FEVER_AT && !G.fever) {
     setFever(true);
     sfx.fever();
-    showOverlay(el.banner, 'FEVER!!', 1200);
+    banner('FEVER!!', 1200);
     confettiRain(140);
   } else {
     sfx.milestone();
-    showOverlay(el.banner, `${G.combo} COMBO!`, 1000);
+    banner(`${G.combo} COMBO!`, 1000);
     confettiRain(50 + Math.min(G.combo, 200) / 2);
   }
 }
@@ -913,8 +1039,8 @@ function clearWord() {
   const scale = G.fever ? 1.5 : 1;
   ring(x, y, 20, Math.max(r.width, r.height) * .75, '#ffe04a', .55, 10);
   ring(x, y, 10, Math.max(r.width, r.height) * .5, '#ff4d88', .45, 7);
-  burst(x, y, 34 * scale, 720, ['conf', 'conf', 'star', 'dot'], { life: 1.1, size: 7, g: 900, up: 260 });
-  for (let i = 0; i < amt(10); i++) spawn({ x: r.left + Math.random() * r.width, y: r.bottom - 10, vx: (Math.random() - .5) * 60, vy: -120 - Math.random() * 200, g: -60, drag: .99, kind: 'bubble', color: '#ffffff', size: 5 + Math.random() * 10, life: 1, max: 1 });
+  burst(x, y, 34 * scale, 720, ['conf', 'conf', 'star', 'dot'], { life: 1.1, size: 7, g: 900, up: 260, back: true });
+  for (let i = 0; i < amt(10); i++) spawn({ x: r.left + Math.random() * r.width, y: r.bottom - 10, vx: (Math.random() - .5) * 60, vy: -120 - Math.random() * 200, g: -60, drag: .99, kind: 'bubble', color: '#ffffff', size: 5 + Math.random() * 10, life: 1, max: 1, back: true });
   popText(x, r.top + 18, '+' + bonus.toLocaleString(), '', 80);
   if (perfect) {
     popText(x, r.top - 24, 'PERFECT!', 'perfect', 60);
@@ -975,11 +1101,12 @@ function startGame() {
   steps.forEach((s, i) => cdTimers.push(setTimeout(() => {
     sfx.count(i === 3);
     showOverlay(el.countdown, s, i === 3 ? 700 : 620);
-    if (i === 3) { state = 'playing'; G.lastTick = 0; }
+    if (i === 3) { state = 'playing'; G.lastTick = 0; music.start(); }
   }, i * 620)));
 }
 function toTitle() {
   cdTimers.forEach(clearTimeout); cdTimers = [];
+  music.stop(true);
   state = 'title';
   setFever(false);
   show('title');
@@ -989,8 +1116,9 @@ function finish() {
   state = 'ending';
   G.left = 0;
   setFever(false);
+  music.stop();
   sfx.end();
-  showOverlay(el.banner, 'TIME UP!', 1100);
+  banner('TIME UP!', 1100);
   cdTimers.push(setTimeout(showResult, 1150));
 }
 
@@ -1109,7 +1237,8 @@ function frame(now) {
     }
   }
   drawBg(dt, now);
-  drawParts(dt);
+  fx.clearRect(0, 0, W, H);
+  drawParts(fx, parts, dt);
   requestAnimationFrame(frame);
 }
 
@@ -1118,7 +1247,7 @@ renderTitle();
 requestAnimationFrame(frame);
 
 // 動作確認用
-window.__shuwa = { cands, feed, guide, makeWord, fullRoma, G };
+window.__shuwa = { cands, feed, guide, makeWord, fullRoma, G, M, S };
 })();
 </script>
 </body>
