@@ -218,6 +218,19 @@ body.fever .card .fever-tag { display: block; animation: wobble .6s ease-in-out 
 .w-roma .just { animation: hop .22s cubic-bezier(.2, 1.8, .4, 1); }
 @keyframes hop { 0% { transform: translateY(-12px) scale(1.6); } 100% { transform: none; } }
 .w-roma.bad .n { background: var(--cherry); color: var(--white); }
+.gauge {
+  margin-top: 6px;
+  display: grid; grid-template-columns: auto 1fr auto; align-items: center; gap: 10px;
+  font: inherit; color: var(--ink); background: none; border: 0; padding: 0; width: 100%; cursor: default;
+}
+.gauge .lbl { opacity: .7; }
+.gbar { height: 14px; border: 3px solid var(--ink); border-radius: 999px; background: var(--white); overflow: hidden; }
+.gbar i { display: block; height: 100%; width: 100%; transform: scaleX(0); transform-origin: left; background: var(--soda); transition: transform .15s ease-out; }
+.g-hint { font: 800 .78rem/1 var(--font-body); font-variant-numeric: tabular-nums; min-width: 3.2em; text-align: right; }
+.gauge.full { cursor: pointer; }
+.gauge.full .gbar i { background: linear-gradient(90deg, var(--cherry), var(--lemon), var(--mint), var(--soda), var(--grape)); background-size: 200% 100%; animation: rainbow 1s linear infinite; }
+.gauge.full .g-hint { background: var(--cherry); color: var(--white); border-radius: 8px; padding: 5px 8px; animation: wobble .5s ease-in-out infinite; }
+.flash { position: fixed; inset: 0; z-index: 45; pointer-events: none; background: var(--white); opacity: 0; }
 .next { font-weight: 800; font-size: .95rem; display: flex; gap: 10px; align-items: center; color: var(--ink); background: rgba(255, 255, 255, .55); border-radius: 999px; padding: 6px 16px; }
 .next .lbl { opacity: .6; }
 .hint { margin: 0; font-size: .82rem; font-weight: 800; opacity: .75; text-align: center; }
@@ -346,6 +359,7 @@ body.fever .card .fever-tag { display: block; animation: wobble .6s ease-in-out 
       <li><b>ノーミス</b>で単語クリア → +1秒（最大15秒）</li>
       <li><b>10コンボ</b>ごとに倍率アップ</li>
       <li><b>50コンボ</b>でフィーバー</li>
+      <li><b>ゲージ満タン</b>で Space → バブルボム</li>
     </ul>
     <p class="note">日本語入力（IME）はオフにして、半角英数で打ってください。「ー」は − キー。<br>「shi / si」「chi / ti」「n / nn」など、どの打ち方でもOK。</p>
   </section>
@@ -373,6 +387,11 @@ body.fever .card .fever-tag { display: block; animation: wobble .6s ease-in-out 
         <div id="wDisp" class="w-disp"></div>
         <div id="wKana" class="w-kana"></div>
         <div id="wRoma" class="w-roma" aria-live="off"></div>
+        <button id="gauge" class="gauge" type="button" tabindex="-1" aria-label="バブルボム">
+          <span class="lbl">Bubble</span>
+          <span class="gbar"><i id="gaugeFill"></i></span>
+          <span id="gaugeHint" class="g-hint">0%</span>
+        </button>
       </div>
       <div class="next"><span class="lbl">Next</span><span id="nextW"></span></div>
       <p class="hint" id="gameHint">Esc でタイトルへ</p>
@@ -399,8 +418,8 @@ body.fever .card .fever-tag { display: block; animation: wobble .6s ease-in-out 
         <div><dt>正確率</dt><dd id="sAcc">0<small>%</small></dd></div>
         <div><dt>最大コンボ</dt><dd id="sCombo">0</dd></div>
         <div><dt>クリアした言葉</dt><dd id="sWords">0</dd></div>
-        <div><dt>正しく打った数</dt><dd id="sOk">0</dd></div>
         <div><dt>ミス</dt><dd id="sMiss">0</dd></div>
+        <div><dt>バブルボム</dt><dd id="sBomb">0</dd></div>
       </dl>
       <div class="actions">
         <button id="retryBtn" class="btn big" type="button">もう一回 <kbd>SPACE</kbd></button>
@@ -412,6 +431,7 @@ body.fever .card .fever-tag { display: block; animation: wobble .6s ease-in-out 
 
 <canvas id="fx" aria-hidden="true"></canvas>
 <div id="pops" aria-hidden="true"></div>
+<div id="flash" class="flash" aria-hidden="true"></div>
 <div id="countdown" class="overlay-text" hidden></div>
 <div id="banner" class="overlay-text" hidden></div>
 <div id="toast" class="toast" role="status" hidden></div>
@@ -632,6 +652,12 @@ const sfx = {
   tick() { osc('square', 1400, 0, 0, .03, .05); },
   end() { [12, 7, 4, 0].forEach((s, i) => osc('triangle', note(s), 0, i * .09, .25, .2)); },
   fanfare() { [0, 4, 7, 12, 7, 12, 16, 19, 24].forEach((s, i) => osc('triangle', note(s), 0, i * .08, .22, .18)); },
+  ready() { [0, 7, 12, 19].forEach((s, i) => osc('sine', note(s + 12), 0, i * .05, .18, .16)); },
+  bomb() { osc('sine', 140, 38, 0, .5, .7); osc('sawtooth', 300, 2400, 0, .35, .07); },
+  bombPop(i) {
+    const k = Math.min(i / 2, 29), f = note(12 * Math.floor(k / 5) - 12 + PENTA[k % 5]);
+    osc('sine', f * .6, f * 1.3, 0, .08, .22);
+  },
   blip() { osc('sine', 880, 1320, 0, .06, .15); }
 };
 
@@ -770,7 +796,7 @@ function burst(x, y, n, speed, kinds, opts = {}) {
       rot: Math.random() * 6, vr: (Math.random() - .5) * 14, life, max: life, back: opts.back });
   }
 }
-function ring(x, y, r0, r1, color, life, width = 4) { spawn({ x, y, kind: 'ring', r0, r1, color, life, max: life, size: width }); }
+function ring(x, y, r0, r1, color, life, width = 4, back = false) { spawn({ x, y, kind: 'ring', r0, r1, color, life, max: life, size: width, back }); }
 function confettiRain(n) {
   for (let i = 0; i < amt(n); i++) {
     const life = 2 + Math.random() * 1.5;
@@ -907,7 +933,8 @@ try { const m = localStorage.getItem('shuwa-mode'); if (WORDS[m]) mode = m; } ca
 const G = {};
 function resetGame() {
   Object.assign(G, { left: TIME, elapsed: 0, score: 0, shown: 0, combo: 0, maxCombo: 0, ok: 0, miss: 0, words: 0,
-    fever: false, bag: [], cur: null, next: null, lastTick: 0, bonus: 0 });
+    fever: false, bag: [], cur: null, next: null, lastTick: 0, bonus: 0, gauge: 0, bombs: 0 });
+  renderGauge();
 }
 function draw() {
   if (!G.bag.length) {
@@ -999,6 +1026,7 @@ function hit(done) {
   G.ok++; G.combo++;
   if (G.combo > G.maxCombo) G.maxCombo = G.combo;
   G.score += Math.round(10 * mult());
+  addGauge(G.fever ? 2.4 : 1.5);
   sfx.pop(G.combo, G.fever);
   renderWord(true);
   renderHud(); bump(el.combo);
@@ -1032,6 +1060,7 @@ function clearWord() {
   const perfect = !G.cur.missed;
   const bonus = Math.round(G.cur.k.length * 30 * mult() * (perfect ? 1.5 : 1));
   G.score += bonus; G.words++;
+  if (perfect) addGauge(5);
   sfx.clear(perfect);
 
   const r = el.card.getBoundingClientRect();
@@ -1061,6 +1090,7 @@ function miss() {
   G.cur.missed = true;
   const hadCombo = G.combo;
   G.combo = 0;
+  addGauge(-35);
   setFever(false);
   renderHud();
   sfx.miss();
@@ -1075,9 +1105,66 @@ function miss() {
   ], { duration: 260, easing: 'ease-out' });
 }
 
+/* ---------- バブルボム ---------- */
+const GAUGE_KEYS = matchMedia('(pointer: coarse)').matches ? 'タップ!' : 'SPACE!';
+function renderGauge() {
+  const g = Math.max(0, Math.min(100, G.gauge || 0)), full = g >= 100;
+  $('gaugeFill').style.transform = `scaleX(${g / 100})`;
+  $('gaugeHint').textContent = full ? GAUGE_KEYS : Math.floor(g) + '%';
+  $('gauge').classList.toggle('full', full);
+}
+function addGauge(v) {
+  const was = G.gauge >= 100;
+  G.gauge = Math.max(0, Math.min(100, G.gauge + v));
+  if (!was && G.gauge >= 100) { sfx.ready(); popText(innerWidth / 2, $('gauge').getBoundingClientRect().top, 'BOMB READY!', 'perfect', 50); }
+  renderGauge();
+}
+const bombQueue = [];
+function bubbleBomb() {
+  if (state !== 'playing' || G.gauge < 100) return;
+  G.gauge = 0; G.bombs++; G.bombPts = 0;
+  renderGauge();
+  sfx.bomb();
+  const f = $('flash');
+  f.animate([{ opacity: .85 }, { opacity: 0 }], { duration: RM ? 150 : 450, easing: 'ease-out' });
+  // 画面にある泡に、追加の泡も足して、中心から外へ波のように割っていく
+  for (let i = 0; i < 24; i++) bubbles.push(newBubble(Math.random() * H));
+  const cx = W / 2, cy = H / 2, now = performance.now(), m = mult();
+  const list = bubbles.map(b => ({ b, d: Math.hypot(b.x - cx, b.y - cy) })).sort((a, z) => a.d - z.d);
+  list.forEach(({ b, d }, i) => bombQueue.push({ b, at: now + 120 + d * .9, i, pts: Math.round((4 + b.r * .8) * m) }));
+  ring(cx, cy, 20, Math.hypot(W, H) * .6, '#ffffff', .8, 14, true);
+  if (!RM) document.getElementById('app').animate([
+    { transform: 'scale(1)' }, { transform: 'scale(1.03)' }, { transform: 'scale(.99)' }, { transform: 'scale(1)' }
+  ], { duration: 380, easing: 'ease-out' });
+}
+function runBombQueue(now) {
+  if (!bombQueue.length) return;
+  for (let i = bombQueue.length - 1; i >= 0; i--) {
+    const q = bombQueue[i];
+    if (q.at > now) continue;
+    bombQueue.splice(i, 1);
+    const { b } = q;
+    const bi = bubbles.indexOf(b);
+    if (bi >= 0) bubbles.splice(bi, 1);
+    G.score += q.pts; G.bombPts += q.pts;
+    ring(b.x, b.y, b.r, b.r * 3.2, pick(COLORS), .5, 5, true);
+    burst(b.x, b.y, 6, 260, ['dot', 'star'], { life: .6, size: 3.5, g: 500, back: true });
+    if (q.i % 2 === 0) sfx.bombPop(q.i);
+    const cr = el.card.getBoundingClientRect();
+    const onCard = b.x > cr.left - 30 && b.x < cr.right + 30 && b.y > cr.top - 20 && b.y < cr.bottom + 20;
+    if (q.i % 6 === 0 && !onCard) popText(b.x, b.y, '+' + q.pts, '', 30);
+  }
+  if (!bombQueue.length) {
+    banner('+' + G.bombPts.toLocaleString(), 1100);
+    sfx.clear(true);
+    // 泡を補充
+    seedBubbles();
+  }
+}
+
 function onChar(ch) {
   if (state !== 'playing') return;
-  if (ch === ' ') return;
+  if (ch === ' ') { bubbleBomb(); return; }
   const r = feed(G.cur, ch);
   if (r === 'miss') miss(); else hit(r === 'done');
 }
@@ -1106,6 +1193,7 @@ function startGame() {
 }
 function toTitle() {
   cdTimers.forEach(clearTimeout); cdTimers = [];
+  if (bombQueue.length) { bombQueue.length = 0; seedBubbles(); }
   music.stop(true);
   state = 'title';
   setFever(false);
@@ -1145,8 +1233,8 @@ function showResult() {
   $('sAcc').innerHTML = (acc * 100).toFixed(1) + '<small>%</small>';
   $('sCombo').textContent = G.maxCombo;
   $('sWords').textContent = G.words;
-  $('sOk').textContent = G.ok;
   $('sMiss').textContent = G.miss;
+  $('sBomb').textContent = G.bombs;
   $('newBest').hidden = !isBest;
   show('result');
 
@@ -1209,6 +1297,7 @@ scr.game.addEventListener('pointerdown', focusInput);
 
 document.querySelectorAll('.mode').forEach(b => b.addEventListener('click', () => setMode(b.dataset.mode)));
 $('startBtn').addEventListener('click', startGame);
+$('gauge').addEventListener('click', bubbleBomb);
 $('retryBtn').addEventListener('click', startGame);
 $('backBtn').addEventListener('click', toTitle);
 if (matchMedia('(pointer: coarse)').matches) $('gameHint').textContent = 'カードをタップするとキーボードが出ます';
@@ -1236,6 +1325,7 @@ function frame(now) {
       el.score.textContent = Math.round(G.shown).toLocaleString();
     }
   }
+  runBombQueue(now);
   drawBg(dt, now);
   fx.clearRect(0, 0, W, H);
   drawParts(fx, parts, dt);
